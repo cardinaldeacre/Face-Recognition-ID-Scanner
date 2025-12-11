@@ -1,35 +1,49 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useState } from 'react';
+import Sidebar from './components/sidebar';
+import StudentDashboard from './components/StudentDashboard';
+import AdminDashboard from './components/AdminDashboard';
+import type { Application, EventItem } from './types/types';
 
-function App() {
-  const [count, setCount] = useState(0)
+export default function App() {
+  const [view, setView] = useState<'student' | 'admin'>('student');
+
+  const [applications, setApplications] = useState<Application[]>([
+    { id: 1, student: "John Doe", date: "2025-12-01", purpose: "Book Retrieval", status: "approve" },
+    { id: 2, student: "Jane Smith", date: "2025-12-02", purpose: "Lab Access", status: "waiting" }
+  ]);
+
+  const [events, setEvents] = useState<EventItem[]>([]);
+
+  const approveApplication = (id: number) => {
+    setApplications(prev =>
+      prev.map(app =>
+        app.id === id ? { ...app, status: "approve" } : app
+      )
+    );
+  };
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
-}
+    <div className="dashboard-container">
+      <Sidebar current={view} onChange={setView} />
 
-export default App
+      <div className="main-content">
+        {view === 'student' && (
+          <StudentDashboard
+            applications={applications}
+            setApplications={setApplications}
+            events={events}
+          />
+        )}
+
+        {view === 'admin' && (
+          <AdminDashboard
+            applications={applications}
+            approve={approveApplication}
+            events={events}
+            setEvents={setEvents}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
