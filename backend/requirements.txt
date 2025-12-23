@@ -1,6 +1,0 @@
-tensorflow
-keras==2.3
-h5py==2.10.0
-mtcnn
-scikit-learn
-matplotlib
