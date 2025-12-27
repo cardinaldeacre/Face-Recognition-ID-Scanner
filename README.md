@@ -63,57 +63,33 @@ Link : https://drive.google.com/drive/folders/1mIN-v7M3Rnem0J6zDhKMFUQO_IwNlknL?
 
 Setelah seluruh persiapan selesai, jalankan langkah-langkah berikut:
 
-1.Menjalankan utils.py
+1.Menjalankan encoding_with_db.py
    ```
-   utils.py
-   ```
-
-Untuk memuat fungsi pendukung seperti normalisasi, ekstraksi wajah, dan preprocessing.
-
-python utils.py
-
-2.Menjalankan encoding.py
-   ```
-   encoding.py
+   encoding_with_db.py
    ```
 
-Script ini membuat encodings.pkl dari setiap wajah dalam dataset.
+Untuk membuat encodings dari setiap wajah dalam dataset.
 
-python encoding.py
 
-3.Menjalankan prepare_data.py
-  ```
-  prepare_data.py
-  ```
+2.Menjalankan face-rec_db.py
+   ```
+   face-rec_db.py
+   ```
+Script utama untuk mendeteksi wajah dan melakukan prediksi identitas.
 
-Dipakai untuk mempersiapkan data tambahan, struktur folder, atau proses lain sebelum training/prediksi.
-
-python prepare_data.py
-
-4.Menjalankan face_recognition.py
-  ```
-  face_recognition.py
-  ```
-Script utama untuk mendeteksi wajah, menghasilkan encoding, dan melakukan prediksi identitas.
-  ```
-  python face_recognition.py
-  ```
 ## Struktur Folder
 ```
   project/
   │
   ├── keras-facenet.h5
-  ├── encodings/
-  │   └── encodings.pkl
   ├── data/
   │   └── faces/
   │       └── person_name/
   │            └── *.jpg
   │
   ├── utils.py
-  ├── encoding.py
-  ├── prepare_data.py
-  ├── face_recognition.py
+  ├── encoding_with_db.py
+  ├── face-rec_db.py
   ├── requirements.txt
   └── README.md
 ```
