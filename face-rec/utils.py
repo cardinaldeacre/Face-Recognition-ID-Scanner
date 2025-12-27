@@ -4,7 +4,20 @@ import cv2
 import psycopg2
 import json
 from sklearn.preprocessing import Normalizer
+import os
+from dotenv import load_dotenv
 
+env_path = os.path.join(os.path.dirname(__file__), 'config', '.env')
+load_dotenv(dotenv_path=env_path)
+
+def get_db_config():
+    return {
+        "host": os.getenv("DB_HOST", "localhost"),
+        "database": os.getenv("DB_NAME"),
+        "user": os.getenv("DB_USER"),
+        "password": os.getenv("DB_PASS"),
+        "port": os.getenv("DB_PORT", 5432)
+    }
 
 def get_encode(face_encoder, face, size):
     face = normalize(face)
@@ -32,39 +45,27 @@ def normalize(img):
     return (img - mean) / (std + 1e-8)
 
 
-def load_encodings_from_db(
-    host="localhost",
-    database="face_recognition",
-    user="postgres",
-    password="",
-    port=5432
-):
+def load_encodings_from_db():
+    config = get_db_config()
     """
     Load face encodings from PostgreSQL
     Return: dict {nim: np.array(embedding)}
     """
 
     try:
-        conn = psycopg2.connect(
-            host=host,
-            database=database,
-            user=user,
-            password=password,
-            port=port
-        )
+        conn = psycopg2.connect(**config)
         cursor = conn.cursor()
         
-        # Hanya ambil user yang sudah punya embedding
+        # hanya ambil user yang sudah punya embedding
         cursor.execute("SELECT nim, face_embedding FROM users WHERE face_embedding IS NOT NULL")
         rows = cursor.fetchall()
 
         encoding_dict = {}
-        for nim, embedding in rows:
-            # Jika kolom JSONB di Postgres, kadang perlu diparsing manual tergantung versi psycopg2
+        for nim, embedding in rows:            
             if isinstance(embedding, str):
                 emb_list = json.loads(embedding)
             else:
-                emb_list = embedding # Sudah berupa list/array
+                emb_list = embedding # berupa list/array
             
             encoding_dict[nim] = np.array(emb_list, dtype=np.float32)
 
