@@ -5,19 +5,14 @@ import psycopg2
 import mtcnn
 import json
 from keras.models import load_model
-from utils import get_face, normalize, l2_normalizer
+from utils import get_face, normalize, get_db_config, load_encodings_from_db, l2_normalizer
 
 PEOPLE_DIR = "data/Faces"
 MODEL_PATH = "facenet_keras.h5"
 REQUIRED_SIZE = (160, 160)
 
-DB_CONFIG = {
-    "host": "localhost",
-    "database": "face_recognition",
-    "user": "postgres",
-    "password": "",
-    "port": 5432
-}
+DB_CONFIG = get_db_config()
+conn = psycopg2.connect(**DB_CONFIG)
 
 face_detector = mtcnn.MTCNN()
 face_encoder = load_model(MODEL_PATH)
