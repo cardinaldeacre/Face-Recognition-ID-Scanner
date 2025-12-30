@@ -2,7 +2,7 @@ const knex = require('../config/database');
 
 const PermissionService = {
   getAll: async () => {
-    return await knex('permissions')
+    const permissions = await knex('permissions')
       .join('users', 'permissions.user_id', '=', 'users.id')
       .select(
         'permissions.*',
@@ -12,6 +12,35 @@ const PermissionService = {
         'users.semester as student_semester'
       )
       .orderBy('permissions.created_at', 'desc');
+
+    // Get attendance logs for each permission
+    for (const permission of permissions) {
+      const logs = await knex('attendance_logs')
+        .where({ permission_id: permission.id })
+        .orderBy('timestamp', 'asc');
+
+      const inLog = logs.find(log => log.type === 'IN');
+      const outLog = logs.find(log => log.type === 'OUT');
+
+      // Set check-in and check-out status
+      permission.check_in = inLog ? inLog.timestamp : null;
+      permission.check_out = outLog ? outLog.timestamp : null;
+
+      // Set attendance status
+      if (permission.status === 'accepted') {
+        if (outLog) {
+          permission.attendance_status = 'completed';
+        } else if (inLog) {
+          permission.attendance_status = 'out';
+        } else {
+          permission.attendance_status = 'pending';
+        }
+      } else {
+        permission.attendance_status = permission.status;
+      }
+    }
+
+    return permissions;
   },
 
   getById: async (id) => {

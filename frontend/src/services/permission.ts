@@ -2,6 +2,7 @@
 import api from './api';
 
 export type PermissionStatus = 'waiting' | 'accepted' | 'denied' | 'violation';
+export type AttendanceStatus = 'waiting' | 'accepted' | 'denied' | 'violation' | 'pending' | 'out' | 'completed';
 
 export interface Permissions {
   id: number;
@@ -16,6 +17,10 @@ export interface Permissions {
   student_nim?: string;
   student_prodi?: string;
   student_semester?: number;
+
+  check_in?: string | null;
+  check_out?: string | null;
+  attendance_status?: AttendanceStatus;
 }
 
 export async function getMyPermissionHistory(): Promise<Permissions[]> {

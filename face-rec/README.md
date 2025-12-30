@@ -96,7 +96,7 @@ python prepare_data.py
   ```
 Script utama untuk mendeteksi wajah, menghasilkan encoding, dan melakukan prediksi identitas.
   ```
-  python face_recognition.py
+  python face_recognizer.py
   ```
 ## Struktur Folder
 ```

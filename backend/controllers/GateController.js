@@ -17,10 +17,22 @@ router.post('/screen', async (req, res) => {
             return res.status(404).json({ message: 'Wajah ga nemu' });
         }
 
-        const autoType = await GateService.determineNextType(user.id)
         const activePermission = await GateService.checkActivePermission(user.id);
 
         if (activePermission) {
+            console.log('✅ Active Permission Found:', {
+                userId: user.id,
+                permissionId: activePermission.id,
+                status: activePermission.status,
+                startTime: activePermission.start_time,
+                endTime: activePermission.end_time
+            });
+
+            // Determine type based on THIS permission's logs
+            const autoType = await GateService.determineNextType(user.id, activePermission.id);
+
+            console.log('📍 Auto Type:', autoType);
+
             await knex('attendance_logs').insert({
                 permission_id: activePermission.id,
                 user_id: user.id,
@@ -32,6 +44,23 @@ router.post('/screen', async (req, res) => {
                 type: autoType
             });
         } else {
+            console.log('❌ No Active Permission for user:', user.id, user.nama);
+
+            // Check all permissions for debugging
+            const allPermissions = await knex('permissions')
+                .where({ user_id: user.id })
+                .select('*');
+
+            console.log('📋 All Permissions for user:', allPermissions.map(p => ({
+                id: p.id,
+                status: p.status,
+                start_time: p.start_time,
+                end_time: p.end_time
+            })));
+
+            // No active permission - create violation
+            const autoType = await GateService.determineNextType(user.id, null);
+
             const [violation] = await knex('permissions').insert({
                 user_id: user.id,
                 status: 'violation',

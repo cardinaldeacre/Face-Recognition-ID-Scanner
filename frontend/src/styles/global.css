@@ -199,6 +199,18 @@ th {
 .status-badge--violation {
   background-color: #6f42c1;
 } /* contoh ungu */
+.status-pending,
+.status-badge--pending {
+  background-color: #17a2b8;
+} /* cyan */
+.status-out,
+.status-badge--out {
+  background-color: #fd7e14;
+} /* orange */
+.status-completed,
+.status-badge--completed {
+  background-color: #28a745;
+} /* green */
 
 /* Admin Action Button */
 .action-btn {

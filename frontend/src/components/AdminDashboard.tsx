@@ -194,15 +194,16 @@ export default function AdminDashboard() {
               <th>Alasan</th>
               <th>Prodi</th>
               <th>Semester</th>
-              <th>Tanggal Keluar</th>
-              <th>Waktu Masuk</th>
+              <th>Jadwal Keluar</th>
+              <th>Waktu IN</th>
+              <th>Waktu OUT</th>
               <th>Status</th>
             </tr>
           </thead>
           <tbody>
             {permissions.length === 0 ? (
               <tr>
-                <td colSpan={8} style={{ textAlign: 'center' }}>
+                <td colSpan={9} style={{ textAlign: 'center' }}>
                   Belum ada history perizinan.
                 </td>
               </tr>
@@ -215,12 +216,13 @@ export default function AdminDashboard() {
                   <td>{perm.student_prodi || '-'}</td>
                   <td>{perm.student_semester || '-'}</td>
                   <td>{new Date(perm.start_time).toLocaleString()}</td>
-                  <td>{new Date(perm.end_time).toLocaleString()}</td>
+                  <td>{perm.check_in ? new Date(perm.check_in).toLocaleString() : '-'}</td>
+                  <td>{perm.check_out ? new Date(perm.check_out).toLocaleString() : '-'}</td>
                   <td>
                     <span
-                      className={`status-badge status-badge--${perm.status}`}
+                      className={`status-badge status-badge--${perm.attendance_status || perm.status}`}
                     >
-                      {perm.status}
+                      {perm.attendance_status || perm.status}
                     </span>
                   </td>
                 </tr>

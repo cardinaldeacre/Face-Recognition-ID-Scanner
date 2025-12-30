@@ -35,9 +35,10 @@ const GateService = {
             .first();
     },
 
-    determineNextType: async (userId) => {
+    determineNextType: async (userId, permissionId) => {
+        // Get last log for THIS specific permission only
         const lastLog = await knex('attendance_logs')
-            .where({ user_id: userId })
+            .where({ user_id: userId, permission_id: permissionId })
             .orderBy('timestamp', 'desc')
             .first();
 
