@@ -14,6 +14,8 @@ export interface Permissions {
 
   student_name?: string;
   student_nim?: string;
+  student_prodi?: string;
+  student_semester?: number;
 }
 
 export async function getMyPermissionHistory(): Promise<Permissions[]> {

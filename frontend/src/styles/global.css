@@ -114,6 +114,7 @@ header h1 {
 
 .form-group input[type='date'],
 .form-group input[type='text'],
+.form-group input[type='datetime-local'],
 .form-group textarea {
   width: 100%;
   padding: 10px;
@@ -163,7 +164,8 @@ th {
 }
 
 /* Status Pill */
-.status-pill {
+.status-pill,
+.status-badge {
   display: inline-block;
   padding: 5px 10px;
   border-radius: 15px;
@@ -181,16 +183,20 @@ th {
   background-color: var(--danger-color);
 } */
 
-.status-accepted {
+.status-accepted,
+.status-badge--accepted {
   background-color: var(--accent-color);
 }
-.status-waiting {
+.status-waiting,
+.status-badge--waiting {
   background-color: #f0ad4e;
 } /* contoh kuning */
-.status-denied {
+.status-denied,
+.status-badge--denied {
   background-color: var(--danger-color);
 }
-.status-violation {
+.status-violation,
+.status-badge--violation {
   background-color: #6f42c1;
 } /* contoh ungu */
 

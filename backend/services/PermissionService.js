@@ -7,7 +7,9 @@ const PermissionService = {
       .select(
         'permissions.*',
         'users.nama as student_name',
-        'users.nim as student_nim'
+        'users.nim as student_nim',
+        'users.prodi as student_prodi',
+        'users.semester as student_semester'
       )
       .orderBy('permissions.created_at', 'desc');
   },

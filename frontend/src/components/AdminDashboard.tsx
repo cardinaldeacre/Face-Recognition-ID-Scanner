@@ -21,6 +21,14 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
 
   const [eventForm, setEventForm] = useState({ name: '', details: '' });
+  const [permissionForm, setPermissionForm] = useState({
+    nama: '',
+    nim: '',
+    alasan: '',
+    prodi: '',
+    semester: '',
+    tanggal_keluar: '',
+  });
 
   const submitEvent = (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,6 +37,20 @@ export default function AdminDashboard() {
     setEventForm({ name: '', details: '' });
 
     alert('Event published!');
+  };
+
+  const submitPermission = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    alert('Perizinan mahasiswa berhasil dibuat!');
+    setPermissionForm({
+      nama: '',
+      nim: '',
+      alasan: '',
+      prodi: '',
+      semester: '',
+      tanggal_keluar: '',
+    });
   };
 
   async function load() {
@@ -81,16 +103,19 @@ export default function AdminDashboard() {
         <table>
           <thead>
             <tr>
-              <th>Student</th>
-              <th>Date</th>
-              <th>Purpose</th>
+              <th>Nama</th>
+              <th>NIM</th>
+              <th>Prodi</th>
+              <th>Semester</th>
+              <th>Tanggal</th>
+              <th>Keperluan</th>
               <th>Action</th>
             </tr>
           </thead>
           <tbody>
             {waiting.length === 0 ? (
               <tr>
-                <td colSpan={4} style={{ textAlign: 'center' }}>
+                <td colSpan={7} style={{ textAlign: 'center' }}>
                   No pending applications.
                 </td>
               </tr>
@@ -98,6 +123,9 @@ export default function AdminDashboard() {
               waiting.map((app) => (
                 <tr key={app.id}>
                   <td>{app.student_name}</td>
+                  <td>{app.student_nim}</td>
+                  <td>{app.student_prodi || '-'}</td>
+                  <td>{app.student_semester || '-'}</td>
                   <td>{new Date(app.start_time).toLocaleString()}</td>
                   <td>{app.reason}</td>
                   <td>
@@ -154,6 +182,52 @@ export default function AdminDashboard() {
             Publish Event
           </button>
         </form>
+      </section>
+      <section className="card">
+        <h2>📜 Status History Perizinan Mahasiswa</h2>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Nama</th>
+              <th>NIM</th>
+              <th>Alasan</th>
+              <th>Prodi</th>
+              <th>Semester</th>
+              <th>Tanggal Keluar</th>
+              <th>Waktu Masuk</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {permissions.length === 0 ? (
+              <tr>
+                <td colSpan={8} style={{ textAlign: 'center' }}>
+                  Belum ada history perizinan.
+                </td>
+              </tr>
+            ) : (
+              permissions.map((perm) => (
+                <tr key={perm.id}>
+                  <td>{perm.student_name || '-'}</td>
+                  <td>{perm.student_nim || '-'}</td>
+                  <td>{perm.reason}</td>
+                  <td>{perm.student_prodi || '-'}</td>
+                  <td>{perm.student_semester || '-'}</td>
+                  <td>{new Date(perm.start_time).toLocaleString()}</td>
+                  <td>{new Date(perm.end_time).toLocaleString()}</td>
+                  <td>
+                    <span
+                      className={`status-badge status-badge--${perm.status}`}
+                    >
+                      {perm.status}
+                    </span>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </section>
 
       <EventList events={events} />
