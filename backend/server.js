@@ -38,7 +38,7 @@ app.use(cors({
 }));
 
 // Tambahan: Tangani preflight request untuk semua route
-app.options('*', cors());
+app.options('/*', cors());
 
 app.use(cookieParser());
 
