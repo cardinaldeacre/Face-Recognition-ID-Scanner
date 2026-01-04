@@ -2,7 +2,10 @@ const express = require('express');
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const app = express();
-const port = 3000;
+
+// PENTING: Gunakan process.env.PORT untuk Deployment
+const port = process.env.PORT || 3000; 
+
 const swaggerUi = require('swagger-ui-express');
 const { swaggerSpec } = require('./swagger');
 const UserController = require('./controllers/UserController');
@@ -12,11 +15,13 @@ const GateController = require('./controllers/GateController');
 
 // Middleware
 app.use(express.json());
+
+// PENTING: Update CORS untuk mengizinkan akses dari Vercel & Hugging Face
 app.use(
-	cors({
-		origin: 'http://localhost:5173',
-		credentials: true,
-	})
+    cors({
+        origin: true, // Set 'true' sementara agar semua domain (Vercel/HF) bisa akses
+        credentials: true,
+    })
 );
 app.use(cookieParser());
 
@@ -26,11 +31,12 @@ app.use('/api/attendance', AttendanceLogController);
 app.use('/api/gate', GateController);
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-app.get('/api/', (req, res) => {
-	res.send('Backend Server is running.');
+
+app.get('/', (req, res) => {
+    res.send('Backend Server is running on Cloud.');
 });
 
 // Run server
-app.listen(port, () => {
-	console.log(`Server is listening on http://localhost:${port}`);
+app.listen(port, "0.0.0.0", () => {
+    console.log(`Server is listening on port ${port}`);
 });
