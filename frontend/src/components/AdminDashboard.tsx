@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react'; // 1. Tambah useRef
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import EventList from './EventList';
 
@@ -7,17 +7,25 @@ import type { DashboardOutletContext } from './DashboardLayout';
 import {
   getAllPermissionsAdmin,
   updatePermissionStatus,
+  getRecentScanLogs, // 2. Import fungsi baru
 } from '../services/permission';
-import type { Permissions } from '../services/permission';
+import type { Permissions, ScanLog } from '../services/permission'; // 3. Import tipe ScanLog
 import { logout } from '../services/auth';
 
-// permission management
+import FaceScanner from './FaceScanner'; 
 
 export default function AdminDashboard() {
   const { events, setEvents } = useOutletContext<DashboardOutletContext>();
 
   const [permissions, setPermissions] = useState<Permissions[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // --- STATE SCANNER & LOG ---
+  const [showGateScanner, setShowGateScanner] = useState(false);
+  const [scanLogs, setScanLogs] = useState<ScanLog[]>([]); // State untuk menampung log
+  const pollingRef = useRef<number | null>(null); // Ref untuk menyimpan timer
+  // ---------------------------
+
   const navigate = useNavigate();
 
   const [eventForm, setEventForm] = useState({ name: '', details: '' });
@@ -30,18 +38,64 @@ export default function AdminDashboard() {
     tanggal_keluar: '',
   });
 
+  // --- LOGIC FETCH DATA ---
+  // Fungsi ini mengambil data Log Scanner DAN History Utama sekaligus
+  const refreshAllData = async () => {
+    try {
+      const [logsData, historyData] = await Promise.all([
+        getRecentScanLogs(),      // Ambil 10 log terakhir
+        getAllPermissionsAdmin()  // Ambil data tabel history utama
+      ]);
+
+      // Update state
+      if (Array.isArray(logsData)) setScanLogs(logsData);
+      if (Array.isArray(historyData)) setPermissions(historyData);
+      
+    } catch (error) {
+      console.error("Gagal refresh data realtime:", error);
+    }
+  };
+  // ------------------------
+
+  // --- EFFECT KHUSUS SCANNER ---
+  // Dijalankan setiap kali tombol "Buka Gate Scanner" ditekan
+  useEffect(() => {
+    if (showGateScanner) {
+      // 1. Panggil data langsung saat dibuka
+      refreshAllData();
+
+      // 2. Set interval untuk panggil data setiap 3 detik (Polling)
+      pollingRef.current = window.setInterval(() => {
+        refreshAllData();
+      }, 3000);
+
+    } else {
+      // 3. Jika ditutup, matikan interval agar tidak membebani server
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    }
+
+    // Cleanup saat pindah halaman
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
+  }, [showGateScanner]);
+  // -----------------------------
+
+
+  // ... (Sisa fungsi submitEvent, submitPermission, dll TETAP SAMA) ...
+
   const submitEvent = (e: React.FormEvent) => {
     e.preventDefault();
-
     setEvents((prev) => [...prev, { ...eventForm }]);
     setEventForm({ name: '', details: '' });
-
     alert('Event published!');
   };
 
   const submitPermission = (e: React.FormEvent) => {
     e.preventDefault();
-
     alert('Perizinan mahasiswa berhasil dibuat!');
     setPermissionForm({
       nama: '',
@@ -63,6 +117,7 @@ export default function AdminDashboard() {
     }
   }
 
+  // Load awal halaman biasa
   useEffect(() => {
     load();
   }, []);
@@ -91,17 +146,81 @@ export default function AdminDashboard() {
           display: 'flex',
           justifyContent: 'flex-end',
           marginBottom: 16,
+          gap: '10px'
         }}
       >
+        <button 
+            onClick={() => setShowGateScanner(!showGateScanner)} 
+            className="submit-btn"
+            style={{ backgroundColor: '#ff9800' }}
+        >
+          {showGateScanner ? 'Tutup Gate Mode' : '🚧 Buka Gate Scanner'}
+        </button>
+
         <button onClick={handleLogout} className="logout-btn">
           Logout
         </button>
       </div>
+
+      {showGateScanner && (
+        <section className="card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h2>🚧 Gate Security Mode</h2>
+                <span className="status-badge status-badge--accepted">Live Monitoring</span>
+            </div>
+            
+            <div style={{ display: 'flex', gap: '20px', flexDirection: 'column', alignItems: 'center' }}>
+                <div style={{ width: '100%', maxWidth: '600px', border: '2px dashed #ccc', padding: '10px' }}>
+                     {/* FaceScanner tetap berjalan independen. 
+                         Dia kirim data ke backend -> backend update DB -> interval kita di sini baca DB baru */}
+                    <FaceScanner />
+                </div>
+                
+                <div style={{ width: '100%', padding: '10px', background: '#f5f5f5', borderRadius: '8px' }}>
+                    <h3>Log Aktivitas Terakhir:</h3>
+                    
+                    <ul style={{ listStyle: 'none', padding: 0, maxHeight: '200px', overflowY: 'auto' }}>
+                        {/* --- RENDER DATA DARI DATABASE --- */}
+                        {scanLogs.length === 0 ? (
+                             <li style={{ padding: '8px', color: '#666', textAlign: 'center' }}>
+                                Belum ada aktivitas scan terbaru...
+                             </li>
+                        ) : (
+                            scanLogs.map((log) => (
+                                <li key={log.id} style={{ padding: '8px', borderBottom: '1px solid #ddd', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <div>
+                                        {/* Ikon berdasarkan status */}
+                                        <span style={{ marginRight: 8 }}>
+                                            {log.attendance_status === 'check_in' ? '📥' : '📤'}
+                                        </span>
+                                        <strong>{log.student_name}</strong> 
+                                        <span style={{ fontSize: '0.9em', color: '#555' }}> ({log.student_nim})</span>
+                                    </div>
+                                    
+                                    <div style={{ textAlign: 'right' }}>
+                                        <span className={`status-badge status-badge--${log.attendance_status === 'check_in' ? 'pending' : 'accepted'}`}>
+                                            {log.attendance_status === 'check_in' ? 'MASUK' : 'KELUAR'}
+                                        </span>
+                                        <div style={{ fontSize: '0.8em', color: '#888', marginTop: 2 }}>
+                                            {new Date(log.updated_at).toLocaleTimeString()}
+                                        </div>
+                                    </div>
+                                </li>
+                            ))
+                        )}
+                        {/* -------------------------------- */}
+                    </ul>
+                </div>
+            </div>
+        </section>
+      )}
+
+      {/* ... SISA KODE (Pending Applications, Add Event, History Table) BIARKAN TETAP SAMA ... */}
       <section className="card">
         <h2>📥 Pending Applications</h2>
-
         <table>
-          <thead>
+            {/* ... isi tabel ... */}
+            <thead>
             <tr>
               <th>Nama</th>
               <th>NIM</th>
@@ -153,9 +272,9 @@ export default function AdminDashboard() {
 
       <section className="card">
         <h2>🗓️ Add New Event</h2>
-
         <form onSubmit={submitEvent}>
-          <div className="form-group">
+            {/* ... form content ... */}
+             <div className="form-group">
             <label>Event Name:</label>
             <input
               type="text"
@@ -166,7 +285,6 @@ export default function AdminDashboard() {
               required
             />
           </div>
-
           <div className="form-group">
             <label>Details:</label>
             <textarea
@@ -177,17 +295,17 @@ export default function AdminDashboard() {
               required
             />
           </div>
-
           <button className="submit-btn" type="submit">
             Publish Event
           </button>
         </form>
       </section>
+
       <section className="card">
         <h2>📜 Status History Perizinan Mahasiswa</h2>
-
         <table>
-          <thead>
+            {/* ... isi tabel history ... */}
+            <thead>
             <tr>
               <th>Nama</th>
               <th>NIM</th>

@@ -9,6 +9,8 @@ module.exports = {
       user: process.env.DB_USER,
       password: process.env.DB_PASSWORD,
       database: process.env.DB_NAME,
+      // TAMBAHKAN BARIS INI AGAR BISA CONNECT KE NEON DARI LOKAL:
+      ssl: { rejectUnauthorized: false }, 
     },
     migrations: {
       directory: './database/migrations',

@@ -44,3 +44,10 @@ dataset/
 # =========================
 .DS_Store
 Thumbs.db
+
+node_modules/
+.env
+dist/
+build/
+*.pkl
+data/Faces/
