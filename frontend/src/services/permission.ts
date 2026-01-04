@@ -1,7 +1,7 @@
 // import type { PermissionList } from '../types/api';
 import api from './api';
 
-const ML_API_URL = "http://localhost:5000"; 
+const ML_API_URL = "https://andrerean-face-rec.hf.space";
 
 export type PermissionStatus = 'waiting' | 'accepted' | 'denied' | 'violation';
 export type AttendanceStatus = 'waiting' | 'accepted' | 'denied' | 'violation' | 'pending' | 'out' | 'completed';
