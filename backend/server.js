@@ -3,7 +3,6 @@ const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const app = express();
 
-// PENTING: Gunakan process.env.PORT untuk Deployment
 const port = process.env.PORT || 3000; 
 
 const swaggerUi = require('swagger-ui-express');
@@ -13,20 +12,14 @@ const permissionController = require('./controllers/PermissionController');
 const AttendanceLogController = require('./controllers/AttendanceLogController');
 const GateController = require('./controllers/GateController');
 
-// Middleware
+// 1. Middleware dasar
 app.use(express.json());
 
-// PERBAIKAN: Konfigurasi CORS yang lebih dinamis untuk Vercel
+// 2. Middleware CORS (Ini sudah otomatis menangani OPTIONS/Preflight)
 app.use(cors({
   origin: function (origin, callback) {
-    // Mengizinkan request tanpa origin (seperti alat testing API)
     if (!origin) return callback(null, true);
-    
-    // Logika: Izinkan localhost ATAU domain yang mengandung '.vercel.app'
-    const isLocal = origin.includes('localhost');
-    const isVercel = origin.includes('.vercel.app');
-    
-    if (isLocal || isVercel) {
+    if (origin.includes('localhost') || origin.includes('.vercel.app')) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
@@ -37,12 +30,9 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// PERBAIKAN DI SINI: Mengubah '/*' menjadi nama parameter yang valid (contoh: ':any*') 
-// agar tidak menyebabkan PathError di versi Express/path-to-regexp terbaru.
-app.options('/:any*', cors());
-
 app.use(cookieParser());
 
+// 3. Penempatan Route
 app.use('/api/user', UserController);
 app.use('/api/permission', permissionController);
 app.use('/api/attendance', AttendanceLogController);
