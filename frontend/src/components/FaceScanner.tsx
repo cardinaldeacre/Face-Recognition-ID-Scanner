@@ -5,7 +5,7 @@ export default function FaceScanner() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
-  const [isScanning, setIsScanning] = useState(true);
+  const [isScanning, _setIsScanning] = useState(true);
   const [statusMessage, setStatusMessage] = useState("Mencari wajah...");
   const [statusType, setStatusType] = useState<"neutral" | "success" | "error">("neutral");
 

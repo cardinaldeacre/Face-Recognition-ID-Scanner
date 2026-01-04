@@ -1,24 +1,32 @@
-FROM python:3.7-slim
+FROM python:3.9-slim
 
-# Install system dependencies untuk OpenCV
+# Install system dependencies (Versi terbaru)
 RUN apt-get update && apt-get install -y \
     build-essential \
-    libgl1-mesa-glx \
+    libgl1 \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
     libxrender-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Setup user Hugging Face (UID 1000)
+RUN useradd -m -u 1000 user
+USER user
+ENV PATH="/home/user/.local/bin:$PATH"
+
 WORKDIR /app
 
-COPY requirements.txt .
+# Copy requirements dan install
+COPY --chown=user requirements.txt .
 RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+# Copy sisa file proyek
+COPY --chown=user . .
 
-EXPOSE 5000
+# Port wajib Hugging Face
+EXPOSE 7860
 
-# Gunakan Gunicorn untuk production server
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--timeout", "120", "app:app"]
+# Gunakan Gunicorn untuk menjalankan Flask
+CMD ["gunicorn", "--bind", "0.0.0.0:7860", "--timeout", "120", "app:app"]
