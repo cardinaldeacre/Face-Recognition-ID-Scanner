@@ -17,12 +17,11 @@ const GateController = require('./controllers/GateController');
 app.use(express.json());
 
 // PENTING: Update CORS untuk mengizinkan akses dari Vercel & Hugging Face
-app.use(
-    cors({
-        origin: true, // Set 'true' sementara agar semua domain (Vercel/HF) bisa akses
-        credentials: true,
-    })
-);
+app.use(cors({
+  origin: ['https://face-recognition-id-scanner2-4vq8lhj8j.vercel.app/', 'http://localhost:5173'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true
+}));
 app.use(cookieParser());
 
 app.use('/api/user', UserController);
