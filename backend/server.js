@@ -37,8 +37,9 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Tambahan: Tangani preflight request untuk semua route
-app.options('/*', cors());
+// PERBAIKAN DI SINI: Mengubah '/*' menjadi nama parameter yang valid (contoh: ':any*') 
+// agar tidak menyebabkan PathError di versi Express/path-to-regexp terbaru.
+app.options('/:any*', cors());
 
 app.use(cookieParser());
 
