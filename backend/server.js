@@ -16,12 +16,30 @@ const GateController = require('./controllers/GateController');
 // Middleware
 app.use(express.json());
 
-// PENTING: Update CORS untuk mengizinkan akses dari Vercel & Hugging Face
+// PERBAIKAN: Konfigurasi CORS yang lebih dinamis untuk Vercel
 app.use(cors({
-  origin: ['https://face-recognition-id-scanner2-4vq8lhj8j.vercel.app/', 'http://localhost:5173'],
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  credentials: true
+  origin: function (origin, callback) {
+    // Mengizinkan request tanpa origin (seperti alat testing API)
+    if (!origin) return callback(null, true);
+    
+    // Logika: Izinkan localhost ATAU domain yang mengandung '.vercel.app'
+    const isLocal = origin.includes('localhost');
+    const isVercel = origin.includes('.vercel.app');
+    
+    if (isLocal || isVercel) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
+// Tambahan: Tangani preflight request untuk semua route
+app.options('*', cors());
+
 app.use(cookieParser());
 
 app.use('/api/user', UserController);
