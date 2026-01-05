@@ -25,10 +25,8 @@ const whitelist = [
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Izinkan jika tidak ada origin (seperti postman atau mobile apps)
     if (!origin) return callback(null, true);
     
-    // Cek apakah origin ada di whitelist atau mengandung .vercel.app
     if (whitelist.indexOf(origin) !== -1 || origin.endsWith('.vercel.app')) {
       callback(null, true);
     } else {
@@ -36,7 +34,8 @@ app.use(cors({
       callback(new Error('Not allowed by CORS'));
     }
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  // TAMBAHKAN 'PATCH' di dalam array methods di bawah ini
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], 
   credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
 }));
