@@ -1,12 +1,22 @@
+# Web Server & Framework
 Flask==2.2.5
-Flask-Cors==5.0.0
+Flask-Cors==4.0.0
 requests==2.31.0
-opencv-python-headless
+gunicorn==21.2.0
+
+# AI & Machine Learning
+# Catatan: keras-facenet membutuhkan tensorflow & opencv
 tensorflow==2.11.0
-keras==2.11.0
-mtcnn==0.1.0
+keras-facenet==0.3.2
+mtcnn==0.1.1
 scikit-learn
-numpy==1.23.5
+scipy
+
+# Database & Environment
 psycopg2-binary
 python-dotenv
-gunicorn
+
+# Image Processing & Math
+# NumPy 1.23.5 adalah versi paling stabil untuk TF 2.11
+numpy==1.23.5
+opencv-python-headless

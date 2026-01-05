@@ -15,19 +15,30 @@ const GateController = require('./controllers/GateController');
 // 1. Middleware dasar
 app.use(express.json());
 
-// 2. Middleware CORS (Ini sudah otomatis menangani OPTIONS/Preflight)
+// 2. Perbaikan Middleware CORS
+// Kita gunakan whitelist yang lebih eksplisit agar browser tidak bingung
+const whitelist = [
+  'http://localhost:5173', 
+  'http://localhost:3000', 
+  'https://face-recognition-id-scanner2.vercel.app'
+];
+
 app.use(cors({
   origin: function (origin, callback) {
+    // Izinkan jika tidak ada origin (seperti postman atau mobile apps)
     if (!origin) return callback(null, true);
-    if (origin.includes('localhost') || origin.includes('.vercel.app')) {
+    
+    // Cek apakah origin ada di whitelist atau mengandung .vercel.app
+    if (whitelist.indexOf(origin) !== -1 || origin.endsWith('.vercel.app')) {
       callback(null, true);
     } else {
+      console.log("CORS Terblokir untuk Origin:", origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
 }));
 
 app.use(cookieParser());
