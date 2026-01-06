@@ -5,10 +5,10 @@ const GateService = {
 
     checkActivePermission: async (userId) => {
         const now = new Date();
-        // Mencari izin yang sudah diterima (accepted) atau yang sedang berjalan (out/pending)
         return await knex('permissions')
             .where({ user_id: userId })
-            .whereIn('status', ['accepted', 'pending']) 
+            // Tambahkan 'valid' agar mahasiswa yang sedang di luar bisa scan masuk (IN)
+            .whereIn('status', ['accepted', 'valid', 'waiting']) 
             .where('start_time', '<=', now)
             .where('end_time', '>=', now)
             .orderBy('created_at', 'desc')

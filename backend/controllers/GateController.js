@@ -102,7 +102,8 @@ router.post('/screen', async (req, res) => {
                 ? `Mencoba ${autoType} padahal izin ditolak.` 
                 : `Mencoba ${autoType} tanpa izin yang disetujui (Status: ${activePermission?.status || 'None'}).`;
 
-            const [violation] = await knex('permissions').insert({
+            // Ambil hasil insert sebagai satu objek tunggal [newViolation]
+            const [newViolation] = await knex('permissions').insert({
                 user_id: user.id,
                 status: 'violation',
                 reason: violationReason,
@@ -113,7 +114,7 @@ router.post('/screen', async (req, res) => {
             }).returning('*');
 
             await knex('attendance_logs').insert({
-                permission_id: violation.id,
+                permission_id: newViolation.id, // Sekarang ID pasti terbaca
                 user_id: user.id,
                 type: autoType,
                 timestamp: now
