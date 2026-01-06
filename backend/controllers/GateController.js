@@ -1,3 +1,8 @@
+const express = require('express');
+const router = express.Router();
+const GateService = require('../services/GateService');
+const knex = require('../config/database');
+
 router.post('/screen', async (req, res) => {
     try {
         const { nim_detected } = req.body;
