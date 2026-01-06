@@ -21,7 +21,7 @@ router.post('/screen', async (req, res) => {
 
         if (lastLog) {
             const diffInMinutes = (now - new Date(lastLog.timestamp)) / (1000 * 60);
-            if (diffInMinutes < 5) { 
+            if (diffInMinutes < 0,1) { 
                 return res.status(429).json({ 
                     message: `Halo ${user.nama}, Anda baru saja melakukan scan. Tunggu ${Math.ceil(5 - diffInMinutes)} menit untuk scan ulang.` 
                 });
