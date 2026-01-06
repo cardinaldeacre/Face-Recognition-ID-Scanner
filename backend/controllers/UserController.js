@@ -48,10 +48,11 @@ router.post('/login', async (req, res) => {
       });
     }
 
+    // PERBAIKAN: Konfigurasi Cookie agar bisa terbaca oleh Vercel (Cross-Domain)
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: true, // Wajib true untuk sameSite 'none' di production
+      sameSite: 'none', // Diperlukan agar cookie bisa dikirim antar domain berbeda
       maxAge: 7 * 24 * 60 * 60 * 1000
     });
 
@@ -107,7 +108,8 @@ router.post('/refresh-token', async (req, res) => {
   }
 });
 
-router.post('/logout', authMiddleware, async (req, res) => {
+// PERBAIKAN: Logout dilepaskan dari authMiddleware agar user bisa logout meski token expired
+router.post('/logout', async (req, res) => {
   const refreshToken = req.cookies.refreshToken || req.body.refreshToken;
 
   try {
@@ -115,15 +117,18 @@ router.post('/logout', authMiddleware, async (req, res) => {
       await knex('refresh_token').where({ token: refreshToken }).del();
     }
 
+    // PERBAIKAN: clearCookie harus memiliki atribut yang sama dengan saat set cookie
     res.clearCookie('refreshToken', {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict'
+      secure: true,
+      sameSite: 'none'
     });
 
     res.status(200).json({ message: 'Logout berhasil' });
   } catch (error) {
     console.error(error);
+    // Jika DB gagal, tetap bersihkan cookie di sisi klien agar user keluar dari aplikasi
+    res.clearCookie('refreshToken', { httpOnly: true, secure: true, sameSite: 'none' });
     res.status(500).json({ message: 'Error server' });
   }
 });
