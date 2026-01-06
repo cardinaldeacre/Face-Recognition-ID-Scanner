@@ -80,3 +80,5 @@ router.post('/screen', async (req, res) => {
         res.status(500).json({ message: 'Error server' });
     }
 });
+
+module.exports = router;
