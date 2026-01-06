@@ -5,125 +5,73 @@ const knex = require('../config/database');
 
 router.post('/screen', async (req, res) => {
     try {
+        // 1. SESUAIKAN: Ambil 'nim_detected' dari Pipedream (bukan embedding)
         const { nim_detected } = req.body;
-        if (!nim_detected) return res.status(400).json({ message: 'NIM Kosong' });
 
-        const user = await knex('users').where('nim', nim_detected.toString().trim()).first();
-        if (!user) return res.status(404).json({ message: 'Mahasiswa tidak terdaftar' });
-
-        // 1. Jeda Scan 5 Menit SPESIFIK per User (Wajah yang sama)
-        const lastLog = await knex('attendance_logs')
-            .where('user_id', user.id)
-            .orderBy('timestamp', 'desc')
-            .first();
-            
-        const now = new Date();
-
-        if (lastLog) {
-            const diffInMinutes = (now - new Date(lastLog.timestamp)) / (1000 * 60);
-            if (diffInMinutes < 0,1) { 
-                return res.status(429).json({ 
-                    message: `Halo ${user.nama}, Anda baru saja melakukan scan. Tunggu ${Math.ceil(5 - diffInMinutes)} menit untuk scan ulang.` 
-                });
-            }
+        if (!nim_detected) {
+            return res.status(400).json({ message: 'Data scan tidak lengkap (NIM Kosong)' });
         }
 
-        // 2. Cek Izin & Tentukan Arah (OUT/IN)
+        // 2. SESUAIKAN: Cari user berdasarkan NIM (Pastikan NIM di DB tidak ada spasi)
+        // Kita gunakan .trim() atau query yang fleksibel untuk menghindari 404
+        const user = await knex('users')
+            .where('nim', nim_detected.toString().trim())
+            .first();
+
+        if (!user) {
+            // Ini yang menyebabkan error 404 di Pipedream Anda
+            console.log(`❌ NIM tidak ditemukan di DB: ${nim_detected}`);
+            return res.status(404).json({ message: 'Mahasiswa tidak terdaftar' });
+        }
+
         const activePermission = await GateService.checkActivePermission(user.id);
-        const autoType = await GateService.determineNextType(user.id, activePermission?.id);
 
-        if (activePermission && activePermission.status === 'accepted') {
-            const startTime = new Date(activePermission.start_time);
-            const endTime = new Date(activePermission.end_time);
-            
-            let finalStatus = 'accepted'; 
-            let reasonUpdate = activePermission.reason;
+        if (activePermission) {
+            console.log('✅ Active Permission Found:', { userId: user.id, nama: user.nama });
 
-            if (autoType === 'OUT') {
-                if (now >= startTime) {
-                    finalStatus = 'valid'; // Transisi ke valid jika OUT >= start_time
-                } else {
-                    finalStatus = 'violation'; 
-                    reasonUpdate = `Violation: Keluar terlalu cepat.`;
-                }
-            } else if (autoType === 'IN') {
-                if (now <= endTime) {
-                    finalStatus = 'completed'; // Transisi ke completed jika IN <= end_time
-                } else {
-                    finalStatus = 'violation'; 
-                    reasonUpdate = `Violation: Terlambat kembali.`;
-                }
-            }
+            const autoType = await GateService.determineNextType(user.id, activePermission.id);
 
+            // 3. SESUAIKAN: Tambahkan timestamp manual jika DB tidak auto-generate
             await knex('attendance_logs').insert({
                 permission_id: activePermission.id,
                 user_id: user.id,
                 type: autoType,
-                timestamp: now
+                timestamp: knex.fn.now() 
             });
 
-            await knex('permissions').where({ id: activePermission.id }).update({
-                status: finalStatus,
-                reason: reasonUpdate,
-                updated_at: now
+            return res.status(200).json({
+                message: `Akses diterima. ${autoType}, ${user.nama}!`,
+                type: autoType
             });
+        } else {
+            console.log('❌ No Active Permission for user:', user.nama);
 
-            return res.status(200).json({ 
-                message: `${autoType} Berhasil. Status: ${finalStatus}`,
-                type: autoType,
-                status: finalStatus
-            });
-        } 
-        else if (activePermission && activePermission.status === 'valid' && autoType === 'IN') {
-             const endTime = new Date(activePermission.end_time);
-             let finalStatus = now <= endTime ? 'completed' : 'violation';
-             let reasonUpdate = finalStatus === 'violation' ? `Violation: Terlambat kembali.` : activePermission.reason;
+            const autoType = await GateService.determineNextType(user.id, null);
 
-             await knex('attendance_logs').insert({
-                permission_id: activePermission.id,
-                user_id: user.id,
-                type: autoType,
-                timestamp: now
-            });
-
-            await knex('permissions').where({ id: activePermission.id }).update({
-                status: finalStatus,
-                reason: reasonUpdate,
-                updated_at: now
-            });
-
-            return res.status(200).json({ message: `IN Berhasil. Status: ${finalStatus}`, type: 'IN' });
-        }
-        else {
-            let violationReason = activePermission && activePermission.status === 'rejected' 
-                ? `Mencoba ${autoType} padahal izin ditolak.` 
-                : (activePermission && activePermission.status === 'waiting' 
-                    ? `Mencoba ${autoType} padahal izin belum disetujui (Waiting).`
-                    : `Mencoba ${autoType} tanpa izin resmi.`);
-
-            // Perbaikan pengambilan ID untuk PostgreSQL
-            const [newViolation] = await knex('permissions').insert({
+            // Jika tidak ada izin, buat status 'violation'
+            const [violation] = await knex('permissions').insert({
                 user_id: user.id,
                 status: 'violation',
-                reason: violationReason,
-                start_time: now,
-                end_time: now,
-                created_at: now,
-                updated_at: now
+                reason: `Terdeteksi mencoba melakukan ${autoType} tanpa izin resmi.`,
+                start_time: knex.fn.now(),
+                end_time: knex.fn.now()
             }).returning('*');
 
             await knex('attendance_logs').insert({
-                permission_id: newViolation.id, // Pastikan ID terbaca
+                permission_id: violation.id,
                 user_id: user.id,
                 type: autoType,
-                timestamp: now
+                timestamp: knex.fn.now()
             });
 
-            return res.status(403).json({ message: `Pelanggaran! ${autoType} tidak diizinkan.`, type: autoType });
+            return res.status(403).json({
+                message: `Pelanggaran! Anda mencoba ${autoType} tanpa izin.`,
+                reason: 'No active permission'
+            });
         }
     } catch (error) {
-        console.error("🔥 GateController Error:", error.message);
-        res.status(500).json({ message: 'Error server', detail: error.message });
+        console.error("🔥 GateController Error:", error);
+        res.status(500).json({ message: 'Error server' });
     }
 });
 
