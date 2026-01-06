@@ -1,8 +1,6 @@
 const knex = require('../config/database');
 
 const GateService = {
-    // Fungsi identifyUser dihapus karena identifikasi sekarang lewat NIM dari AI Python
-
     checkActivePermission: async (userId) => {
         const now = new Date();
         return await knex('permissions')
@@ -19,14 +17,11 @@ const GateService = {
     determineNextType: async (userId, permissionId) => {
         if (!permissionId) return 'OUT';
 
-        // Cek log terakhir untuk izin ini
         const lastLog = await knex('attendance_logs')
             .where({ user_id: userId, permission_id: permissionId })
             .orderBy('timestamp', 'desc')
             .first();
 
-        // Alur: Jika belum pernah log atau log terakhir Masuk (IN), maka sekarang Keluar (OUT)
-        // Jika log terakhir Keluar (OUT), maka sekarang Masuk (IN)
         if (!lastLog || lastLog.type === 'IN') {
             return 'OUT';
         }
