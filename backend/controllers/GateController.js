@@ -11,14 +11,22 @@ router.post('/screen', async (req, res) => {
         const user = await knex('users').where('nim', nim_detected.toString().trim()).first();
         if (!user) return res.status(404).json({ message: 'Mahasiswa tidak terdaftar' });
 
-        // 1. Jeda Scan 5 Menit (Anti-Double Scan)
-        const lastLog = await knex('attendance_logs').where('user_id', user.id).orderBy('timestamp', 'desc').first();
+        // 1. Jeda Scan 5 Menit SPESIFIK per User (Wajah yang sama)
+        // Kita mencari log terakhir yang memiliki user_id yang sama dengan user yang terdeteksi
+        const lastLog = await knex('attendance_logs')
+            .where('user_id', user.id)
+            .orderBy('timestamp', 'desc')
+            .first();
+            
         const now = new Date();
 
         if (lastLog) {
             const diffInMinutes = (now - new Date(lastLog.timestamp)) / (1000 * 60);
-            if (diffInMinutes < 5) {
-                return res.status(429).json({ message: `Tunggu ${Math.ceil(5 - diffInMinutes)} menit.` });
+            // Jika orang yang sama scan lagi sebelum 5 menit, maka ditolak
+            if (diffInMinutes < 5) { 
+                return res.status(429).json({ 
+                    message: `Halo ${user.nama}, Anda baru saja melakukan scan. Tunggu ${Math.ceil(5 - diffInMinutes)} menit untuk scan ulang.` 
+                });
             }
         }
 
@@ -74,7 +82,7 @@ router.post('/screen', async (req, res) => {
             });
         } 
         
-        // KONDISI: Berlaku juga untuk status 'valid' yang sedang IN (kembali)
+        // KONDISI: Transisi dari 'valid' ke 'completed' atau 'violation' saat masuk kembali (IN)
         else if (activePermission && activePermission.status === 'valid' && autoType === 'IN') {
              const endTime = new Date(activePermission.end_time);
              let finalStatus = now <= endTime ? 'completed' : 'violation';
@@ -93,16 +101,17 @@ router.post('/screen', async (req, res) => {
                 updated_at: now
             });
 
-            return res.status(200).json({ message: `IN Berhasil. Status: ${finalStatus}` });
+            return res.status(200).json({ message: `IN Berhasil. Status: ${finalStatus}`, type: 'IN' });
         }
 
         // KONDISI: Belum di-acc, Ditolak, atau Tidak ada izin (Violation)
         else {
             let violationReason = activePermission && activePermission.status === 'rejected' 
                 ? `Mencoba ${autoType} padahal izin ditolak.` 
-                : `Mencoba ${autoType} tanpa izin yang disetujui (Status: ${activePermission?.status || 'None'}).`;
+                : (activePermission && activePermission.status === 'waiting' 
+                    ? `Mencoba ${autoType} padahal izin belum disetujui (Waiting).`
+                    : `Mencoba ${autoType} tanpa izin resmi.`);
 
-            // Ambil hasil insert sebagai satu objek tunggal [newViolation]
             const [newViolation] = await knex('permissions').insert({
                 user_id: user.id,
                 status: 'violation',
@@ -114,7 +123,7 @@ router.post('/screen', async (req, res) => {
             }).returning('*');
 
             await knex('attendance_logs').insert({
-                permission_id: newViolation.id, // Sekarang ID pasti terbaca
+                permission_id: newViolation.id,
                 user_id: user.id,
                 type: autoType,
                 timestamp: now

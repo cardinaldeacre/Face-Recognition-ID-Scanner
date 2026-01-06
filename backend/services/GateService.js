@@ -7,8 +7,9 @@ const GateService = {
         const now = new Date();
         return await knex('permissions')
             .where({ user_id: userId })
-            // Tambahkan 'valid' agar mahasiswa yang sedang di luar bisa scan masuk (IN)
-            .whereIn('status', ['accepted', 'valid', 'waiting']) 
+            // Perbaikan: Hapus 'waiting'. Hanya 'accepted' (baru disetujui) 
+            // dan 'valid' (sedang di luar) yang dianggap izin aktif untuk scan.
+            .whereIn('status', ['accepted', 'valid']) 
             .where('start_time', '<=', now)
             .where('end_time', '>=', now)
             .orderBy('created_at', 'desc')
