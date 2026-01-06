@@ -14,7 +14,7 @@ CORS(app)
 
 # --- KONFIGURASI JEMBATAN ---
 # GANTI URL DI BAWAH DENGAN UNIQUE URL DARI TRIGGER PIPEDREAM KAMU (https://eo....pipedream.net)
-PIPEDREAM_URL = "https://eow846h15ywzba4.m.pipedream.net"
+PIPEDREAM_URL = "https://eopltq4bdci5qjr.m.pipedream.net"
 
 face_detector = None
 face_encoder = None
