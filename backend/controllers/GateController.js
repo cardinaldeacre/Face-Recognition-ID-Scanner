@@ -11,45 +11,48 @@ router.post('/screen', async (req, res) => {
         const user = await knex('users').where('nim', nim_detected.toString().trim()).first();
         if (!user) return res.status(404).json({ message: 'Mahasiswa tidak terdaftar' });
 
-        // 1. Cek Jeda Scan (5 Menit)
+        // 1. Jeda Scan 5 Menit (Anti-Double Scan)
         const lastLog = await knex('attendance_logs').where('user_id', user.id).orderBy('timestamp', 'desc').first();
         const now = new Date();
 
         if (lastLog) {
             const diffInMinutes = (now - new Date(lastLog.timestamp)) / (1000 * 60);
             if (diffInMinutes < 5) {
-                return res.status(429).json({ message: `Tunggu ${Math.ceil(5 - diffInMinutes)} menit untuk scan ulang.` });
+                return res.status(429).json({ message: `Tunggu ${Math.ceil(5 - diffInMinutes)} menit.` });
             }
         }
 
-        // 2. Cek Izin & Tentukan Tipe (OUT/IN)
+        // 2. Cek Izin & Tentukan Arah (OUT/IN)
         const activePermission = await GateService.checkActivePermission(user.id);
         const autoType = await GateService.determineNextType(user.id, activePermission?.id);
 
-        if (activePermission) {
+        // --- LOGIKA BERDASARKAN TABEL STATUS ---
+
+        // KONDISI: Ada izin dan sudah di-ACCEPT oleh Admin
+        if (activePermission && activePermission.status === 'accepted') {
             const startTime = new Date(activePermission.start_time);
             const endTime = new Date(activePermission.end_time);
-            let finalStatus = activePermission.status;
+            
+            let finalStatus = 'accepted'; 
             let reasonUpdate = activePermission.reason;
 
-            // --- LOGIKA VALIDASI WAKTU ---
             if (autoType === 'OUT') {
-                if (now < startTime) {
-                    finalStatus = 'violation';
-                    reasonUpdate = `Pelanggaran: Keluar mendahului jadwal (${activePermission.reason})`;
+                if (now >= startTime) {
+                    finalStatus = 'valid'; // Berubah jadi valid jika scan OUT >= start_time
                 } else {
-                    finalStatus = 'accepted'; // Tetap accepted jika keluar tepat waktu
+                    finalStatus = 'violation'; // Pelanggaran jika scan OUT < start_time
+                    reasonUpdate = `Violation: Keluar terlalu cepat.`;
                 }
             } else if (autoType === 'IN') {
-                if (now > endTime) {
-                    finalStatus = 'violation';
-                    reasonUpdate = `Pelanggaran: Kembali melewati batas waktu (${activePermission.reason})`;
+                if (now <= endTime) {
+                    finalStatus = 'completed'; // Selesai jika scan IN <= end_time
                 } else {
-                    finalStatus = 'completed'; // Sukses kembali tepat waktu
+                    finalStatus = 'violation'; // Pelanggaran jika scan IN > end_time
+                    reasonUpdate = `Violation: Terlambat kembali.`;
                 }
             }
 
-            // 3. Simpan Log
+            // Simpan ke Log
             await knex('attendance_logs').insert({
                 permission_id: activePermission.id,
                 user_id: user.id,
@@ -57,24 +60,52 @@ router.post('/screen', async (req, res) => {
                 timestamp: now
             });
 
-            // 4. Update Status di Tabel Permission
+            // Update status di tabel permissions
             await knex('permissions').where({ id: activePermission.id }).update({
                 status: finalStatus,
                 reason: reasonUpdate,
                 updated_at: now
             });
 
-            return res.status(200).json({
-                message: `${autoType} Berhasil. Nama: ${user.nama}. Status: ${finalStatus}`,
-                type: autoType
+            return res.status(200).json({ 
+                message: `${autoType} Berhasil. Status: ${finalStatus}`,
+                type: autoType,
+                status: finalStatus
+            });
+        } 
+        
+        // KONDISI: Berlaku juga untuk status 'valid' yang sedang IN (kembali)
+        else if (activePermission && activePermission.status === 'valid' && autoType === 'IN') {
+             const endTime = new Date(activePermission.end_time);
+             let finalStatus = now <= endTime ? 'completed' : 'violation';
+             let reasonUpdate = finalStatus === 'violation' ? `Violation: Terlambat kembali.` : activePermission.reason;
+
+             await knex('attendance_logs').insert({
+                permission_id: activePermission.id,
+                user_id: user.id,
+                type: autoType,
+                timestamp: now
             });
 
-        } else {
-            // --- LOGIKA KELUAR TANPA IZIN (VIOLATION) ---
+            await knex('permissions').where({ id: activePermission.id }).update({
+                status: finalStatus,
+                reason: reasonUpdate,
+                updated_at: now
+            });
+
+            return res.status(200).json({ message: `IN Berhasil. Status: ${finalStatus}` });
+        }
+
+        // KONDISI: Belum di-acc, Ditolak, atau Tidak ada izin (Violation)
+        else {
+            let violationReason = activePermission && activePermission.status === 'rejected' 
+                ? `Mencoba ${autoType} padahal izin ditolak.` 
+                : `Mencoba ${autoType} tanpa izin yang disetujui (Status: ${activePermission?.status || 'None'}).`;
+
             const [violation] = await knex('permissions').insert({
                 user_id: user.id,
                 status: 'violation',
-                reason: `Terdeteksi melakukan ${autoType} tanpa izin resmi.`,
+                reason: violationReason,
                 start_time: now,
                 end_time: now,
                 created_at: now,
@@ -88,7 +119,7 @@ router.post('/screen', async (req, res) => {
                 timestamp: now
             });
 
-            return res.status(403).json({ message: `Pelanggaran! ${autoType} tanpa izin.`, type: autoType });
+            return res.status(403).json({ message: `Pelanggaran! ${autoType} tidak diizinkan.`, type: autoType });
         }
     } catch (error) {
         console.error("🔥 GateController Error:", error.message);
