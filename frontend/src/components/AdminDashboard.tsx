@@ -127,16 +127,24 @@ export default function AdminDashboard() {
                   <p style={{ textAlign: 'center', color: '#999', padding: '30px' }}>Menunggu deteksi wajah di gerbang...</p>
                 ) : (
                   <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                    {/* Cari bagian mapping scanLogs di dalam return, lalu sesuaikan isinya seperti ini */}
                     {scanLogs.map((log) => (
                       <li key={log.id} style={{ padding: '12px', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <span style={{ fontSize: '1.2rem' }}>{log.attendance_status === 'check_in' ? '📥' : '📤'}</span>
+                            {/* SESUAIKAN: Gunakan log.type (sesuai database attendance_logs) */}
+                            <span style={{ fontSize: '1.2rem' }}>{log.type === 'IN' ? '📥' : '📤'}</span>
                             <strong style={{ color: '#2c3e50' }}>{log.student_name}</strong>
                           </div>
-                          <div style={{ fontSize: '0.8rem', color: '#7f8c8d', marginLeft: '32px' }}>{log.student_nim} • {new Date(log.updated_at).toLocaleTimeString()}</div>
+                          {/* SESUAIKAN: Gunakan log.timestamp jika itu nama kolom di DB Anda, atau log.updated_at */}
+                          <div style={{ fontSize: '0.8rem', color: '#7f8c8d', marginLeft: '32px' }}>
+                            {log.student_nim} • {new Date(log.timestamp).toLocaleTimeString()}
+                          </div>
                         </div>
-                        <span className={`status-badge status-badge--${log.attendance_status === 'check_in' ? 'pending' : 'accepted'}`} style={{ minWidth: '90px', textAlign: 'center', fontWeight: 'bold' }}>{log.attendance_status === 'check_in' ? 'MASUK' : 'KELUAR'}</span>
+                        {/* SESUAIKAN: Badge label berdasarkan log.type */}
+                        <span className={`status-badge status-badge--${log.type === 'IN' ? 'accepted' : 'pending'}`} style={{ minWidth: '90px', textAlign: 'center', fontWeight: 'bold' }}>
+                          {log.type === 'IN' ? 'MASUK' : 'KELUAR'}
+                        </span>
                       </li>
                     ))}
                   </ul>

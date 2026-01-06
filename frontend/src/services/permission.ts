@@ -28,12 +28,13 @@ export interface Permissions {
 // --- PERBAIKAN DI SINI ---
 export interface ScanLog {
   id: number;
-  student_name: string;
-  student_nim: string;
-  // Ubah 'type' menjadi 'attendance_status'
-  attendance_status: 'check_in' | 'check_out' | 'rejected'; 
-  // Ubah 'timestamp' menjadi 'updated_at'
-  updated_at: string; 
+  user_id: number;
+  permission_id: number | null;
+  // Ubah atau tambahkan properti ini:
+  type: 'IN' | 'OUT';      // Menggantikan attendance_status
+  timestamp: string;       // Menggantikan updated_at
+  student_name?: string;
+  student_nim?: string;
 }
 // -------------------------
 
