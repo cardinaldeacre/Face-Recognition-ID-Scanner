@@ -7,32 +7,22 @@ const knex = require('../config/database');
 router.post('/screen', async (req, res) => {
     try {
         const { nim_detected } = req.body;
+        // 1. Validasi input NIM
         if (!nim_detected) return res.status(400).json({ message: 'NIM Kosong' });
 
+        // 2. Cari user di database
         const user = await knex('users').where('nim', nim_detected.toString().trim()).first();
         if (!user) return res.status(404).json({ message: 'Mahasiswa tidak terdaftar' });
 
         const now = new Date();
-        const lastLog = await knex('attendance_logs')
-            .where('user_id', user.id)
-            .orderBy('timestamp', 'desc')
-            .first();
 
-        // JEDA WAKTU: Diubah menjadi sangat singkat (misal 10 detik atau 0.17 menit)
-        // agar tidak dianggap error oleh user saat proses transisi status.
-        if (lastLog) {
-            const diffInSeconds = (now - new Date(lastLog.timestamp)) / 1000;
-            if (diffInSeconds < 10) { // Jeda 10 detik
-                return res.status(429).json({ 
-                    message: `Scan berhasil diproses. Tunggu ${Math.ceil(10 - diffInSeconds)} detik untuk scan ulang.` 
-                });
-            }
-        }
+        // --- BAGIAN JEDA WAKTU TELAH DIHAPUS ---
 
+        // 3. Cek Izin & Tentukan Arah (OUT/IN)
         const activePermission = await GateService.checkActivePermission(user.id);
         const autoType = await GateService.determineNextType(user.id, activePermission?.id);
 
-        // 1. LOGIKA UNTUK IZIN YANG BARU DI-APPROVE (ACCEPTED)
+        // LOGIKA UNTUK IZIN YANG BARU DI-APPROVE (ACCEPTED)
         if (activePermission && activePermission.status === 'accepted') {
             const startTime = new Date(activePermission.start_time);
             const endTime = new Date(activePermission.end_time);
@@ -58,7 +48,7 @@ router.post('/screen', async (req, res) => {
 
             return res.status(200).json({ message: `${autoType} Berhasil`, type: autoType });
         } 
-        // 2. LOGIKA UNTUK MAHASISWA YANG SEDANG DI LUAR (VALID) MAU MASUK (IN)
+        // LOGIKA UNTUK MAHASISWA YANG SEDANG DI LUAR (VALID) MAU MASUK (IN)
         else if (activePermission && activePermission.status === 'valid' && autoType === 'IN') {
              const endTime = new Date(activePermission.end_time);
              const finalStatus = now <= endTime ? 'completed' : 'violation';
@@ -77,7 +67,7 @@ router.post('/screen', async (req, res) => {
 
             return res.status(200).json({ message: `IN Berhasil`, type: 'IN' });
         }
-        // 3. LOGIKA PELANGGARAN (TANPA IZIN ATAU IZIN TIDAK SESUAI)
+        // LOGIKA PELANGGARAN (TANPA IZIN ATAU IZIN TIDAK SESUAI)
         else {
             const [newViolation] = await knex('permissions').insert({
                 user_id: user.id,
