@@ -1,3 +1,4 @@
+// controllers/GateController.js
 const express = require('express');
 const router = express.Router();
 const GateService = require('../services/GateService');
@@ -6,53 +7,34 @@ const knex = require('../config/database');
 router.post('/screen', async (req, res) => {
     try {
         const { nim_detected } = req.body;
+        // Pastikan pengecekan NIM ketat agar tidak ada error undefined
         if (!nim_detected) return res.status(400).json({ message: 'NIM Kosong' });
 
         const user = await knex('users').where('nim', nim_detected.toString().trim()).first();
         if (!user) return res.status(404).json({ message: 'Mahasiswa tidak terdaftar' });
 
-        // 1. Jeda Scan 5 Menit SPESIFIK per User (Wajah yang sama)
-        const lastLog = await knex('attendance_logs')
-            .where('user_id', user.id)
-            .orderBy('timestamp', 'desc')
-            .first();
-            
         const now = new Date();
+        const lastLog = await knex('attendance_logs').where('user_id', user.id).orderBy('timestamp', 'desc').first();
 
         if (lastLog) {
             const diffInMinutes = (now - new Date(lastLog.timestamp)) / (1000 * 60);
             if (diffInMinutes < 5) { 
-                return res.status(429).json({ 
-                    message: `Halo ${user.nama}, Anda baru saja melakukan scan. Tunggu ${Math.ceil(5 - diffInMinutes)} menit untuk scan ulang.` 
-                });
+                return res.status(429).json({ message: `Tunggu ${Math.ceil(5 - diffInMinutes)} menit.` });
             }
         }
 
-        // 2. Cek Izin & Tentukan Arah (OUT/IN)
         const activePermission = await GateService.checkActivePermission(user.id);
         const autoType = await GateService.determineNextType(user.id, activePermission?.id);
 
         if (activePermission && activePermission.status === 'accepted') {
             const startTime = new Date(activePermission.start_time);
             const endTime = new Date(activePermission.end_time);
-            
             let finalStatus = 'accepted'; 
-            let reasonUpdate = activePermission.reason;
 
             if (autoType === 'OUT') {
-                if (now >= startTime) {
-                    finalStatus = 'valid'; // Transisi ke valid jika OUT >= start_time
-                } else {
-                    finalStatus = 'violation'; 
-                    reasonUpdate = `Violation: Keluar terlalu cepat.`;
-                }
+                finalStatus = now >= startTime ? 'valid' : 'violation';
             } else if (autoType === 'IN') {
-                if (now <= endTime) {
-                    finalStatus = 'completed'; // Transisi ke completed jika IN <= end_time
-                } else {
-                    finalStatus = 'violation'; 
-                    reasonUpdate = `Violation: Terlambat kembali.`;
-                }
+                finalStatus = now <= endTime ? 'completed' : 'violation';
             }
 
             await knex('attendance_logs').insert({
@@ -64,66 +46,52 @@ router.post('/screen', async (req, res) => {
 
             await knex('permissions').where({ id: activePermission.id }).update({
                 status: finalStatus,
-                reason: reasonUpdate,
                 updated_at: now
             });
 
-            return res.status(200).json({ 
-                message: `${autoType} Berhasil. Status: ${finalStatus}`,
-                type: autoType,
-                status: finalStatus
-            });
+            return res.status(200).json({ message: `${autoType} Berhasil`, type: autoType });
         } 
         else if (activePermission && activePermission.status === 'valid' && autoType === 'IN') {
+             // Logika untuk kembali (IN) bagi yang statusnya sudah 'valid'
              const endTime = new Date(activePermission.end_time);
-             let finalStatus = now <= endTime ? 'completed' : 'violation';
-             let reasonUpdate = finalStatus === 'violation' ? `Violation: Terlambat kembali.` : activePermission.reason;
+             const finalStatus = now <= endTime ? 'completed' : 'violation';
 
              await knex('attendance_logs').insert({
                 permission_id: activePermission.id,
                 user_id: user.id,
-                type: autoType,
+                type: 'IN',
                 timestamp: now
             });
 
             await knex('permissions').where({ id: activePermission.id }).update({
                 status: finalStatus,
-                reason: reasonUpdate,
                 updated_at: now
             });
 
-            return res.status(200).json({ message: `IN Berhasil. Status: ${finalStatus}`, type: 'IN' });
+            return res.status(200).json({ message: `IN Berhasil`, type: 'IN' });
         }
         else {
-            let violationReason = activePermission && activePermission.status === 'rejected' 
-                ? `Mencoba ${autoType} padahal izin ditolak.` 
-                : (activePermission && activePermission.status === 'waiting' 
-                    ? `Mencoba ${autoType} padahal izin belum disetujui (Waiting).`
-                    : `Mencoba ${autoType} tanpa izin resmi.`);
-
-            // Perbaikan pengambilan ID untuk PostgreSQL
+            // Logika Pelanggaran (Violation)
             const [newViolation] = await knex('permissions').insert({
                 user_id: user.id,
                 status: 'violation',
-                reason: violationReason,
+                reason: 'Aktivitas tanpa izin valid',
                 start_time: now,
-                end_time: now,
-                created_at: now,
-                updated_at: now
+                end_time: now
             }).returning('*');
 
             await knex('attendance_logs').insert({
-                permission_id: newViolation.id, // Pastikan ID terbaca
+                permission_id: newViolation.id,
                 user_id: user.id,
                 type: autoType,
                 timestamp: now
             });
 
-            return res.status(403).json({ message: `Pelanggaran! ${autoType} tidak diizinkan.`, type: autoType });
+            return res.status(403).json({ message: `Pelanggaran!`, type: autoType });
         }
     } catch (error) {
-        console.error("🔥 GateController Error:", error.message);
-        res.status(500).json({ message: 'Error server', detail: error.message });
+        console.error("🔥 Error:", error.message);
+        res.status(500).json({ message: 'Error server' });
     }
 });
 

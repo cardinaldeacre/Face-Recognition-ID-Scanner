@@ -1,8 +1,11 @@
+// import type { PermissionList } from '../types/api';
 import api from './api';
 
 const ML_API_URL = "https://andrerean-face-rec.hf.space";
 
 export type PermissionStatus = 'waiting' | 'accepted' | 'denied' | 'violation' | 'valid' | 'completed';
+
+// Sesuaikan AttendanceStatus
 export type AttendanceStatus = PermissionStatus | 'pending' | 'out';
 
 export interface Permissions {
@@ -22,15 +25,21 @@ export interface Permissions {
   attendance_status?: AttendanceStatus;
 }
 
+// --- PERBAIKAN DI SINI ---
 export interface ScanLog {
   id: number;
-  student_name: string;
-  student_nim: string;
-  attendance_status: string; // Akan berisi 'IN', 'OUT', atau 'violation'
-  updated_at: string;        // Merupakan timestamp scan
+  user_id: number;
+  permission_id: number | null;
+  // Ubah atau tambahkan properti ini:
+  type: 'IN' | 'OUT';      // Menggantikan attendance_status
+  timestamp: string;       // Menggantikan updated_at
+  student_name?: string;
+  student_nim?: string;
 }
+// -------------------------
 
 // --- STUDENT PERMISSIONS ---
+
 export async function getMyPermissionHistory(): Promise<Permissions[]> {
   const res = await api.get<Permissions[]>('/api/permission/my-history');
   return res.data;
@@ -40,24 +49,54 @@ export async function requestPermission(payload: {
   reason: string;
   start_time: string;
   end_time: string;
+  duration?: number;
 }) {
   const res = await api.post('/api/permission/request', payload);
   return res.data;
 }
 
 // --- ADMIN PERMISSIONS ---
+
 export async function getAllPermissionsAdmin(): Promise<Permissions[]> {
   const res = await api.get<Permissions[]>('/api/permission/admin/all');
   return res.data;
 }
 
-export async function updatePermissionStatus(id: number, status: 'accepted' | 'denied') {
+export async function updatePermissionStatus(
+  id: number,
+  status: 'accepted' | 'denied'
+) {
   const res = await api.patch(`/api/permission/admin/status/${id}`, { status });
   return res.data;
 }
 
-// --- LOG SCANNER ---
+// --- FUNGSI FETCH LOG SCANNER (ADMIN) ---
 export async function getRecentScanLogs(): Promise<ScanLog[]> {
+  // Backend mengirimkan objek dengan properti 'data'
   const res = await api.get<{ data: ScanLog[] }>('/api/attendance/recent');
   return res.data.data; 
+}
+
+// --- FACE RECOGNITION SERVICE (PYTHON) ---
+
+export async function verifyAttendance(imageBlob: Blob) {
+  const formData = new FormData();
+  formData.append('image', imageBlob, 'capture.jpg'); 
+
+  try {
+    const response = await fetch(`${ML_API_URL}/scan`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(`ML Server error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data; 
+  } catch (error) {
+    console.error("Error verifying attendance:", error);
+    throw error;
+  }
 }

@@ -28,15 +28,13 @@ const PermissionService = {
 
       // Set attendance status
       if (permission.status === 'accepted') {
-        if (outLog) {
-          permission.attendance_status = 'completed';
-        } else if (inLog) {
-          permission.attendance_status = 'out';
-        } else {
-          permission.attendance_status = 'pending';
-        }
+          permission.attendance_status = 'pending'; // Belum keluar sama sekali
+      } else if (permission.status === 'valid') {
+          permission.attendance_status = 'out'; // Sedang di luar
+      } else if (permission.status === 'completed') {
+          permission.attendance_status = 'completed'; // Sudah kembali
       } else {
-        permission.attendance_status = permission.status;
+          permission.attendance_status = permission.status; // violation/denied/waiting
       }
     }
 
