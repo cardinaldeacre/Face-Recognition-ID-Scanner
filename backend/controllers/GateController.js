@@ -18,7 +18,7 @@ router.post('/screen', async (req, res) => {
 
         if (lastLog) {
             const diffInMinutes = (now - new Date(lastLog.timestamp)) / (1000 * 60);
-            if (diffInMinutes < 5) { 
+            if (diffInMinutes < 0.1) { 
                 return res.status(429).json({ message: `Tunggu ${Math.ceil(5 - diffInMinutes)} menit.` });
             }
         }
